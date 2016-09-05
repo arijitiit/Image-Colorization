@@ -16,7 +16,7 @@ Bunch of third year CS students trying to learn how to fill colours. Detailed Re
 
 [Kushagra Goel](https://github.com/Kushagra-Goel)
 
-Sahil Rishi
+[Sahil Rishi](https://github.com/reckoner-david)
 
 [Siddhant Singh](https://github.com/siddhant-08)
 
