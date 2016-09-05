@@ -1,6 +1,6 @@
 # heuristics_colorize
 
-Bunch of third year CS students trying to learn how to fill colours. Deatiled Readme soon.
+Bunch of third year CS students trying to learn how to fill colours. Detailed Readme soon.
 
 ##Team Members
 
