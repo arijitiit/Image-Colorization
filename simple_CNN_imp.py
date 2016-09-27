@@ -39,44 +39,57 @@ i=0
 for filename in glob.glob('imagenet/Imagenet_dataset/*.JPEG'): 
 	print i
 	i = i+1
-	img = Image.open(filename)
-	rsize = ImageOps.fit(img,(224,224)) 
-	rsizeArr = np.asarray(rsize)  # Get array back
 	try:
-		grey_image_list.append(black_convert(rsizeArr))
-		image_list.append(np.asfarray(rsizeArr))
+		img = Image.open(filename)
+		rsize = ImageOps.fit(img,(224,224)) 
+		ones = np.ones((224,224,3))
+		onesp = np.ones((224,224))
+		rsizeArr = np.asarray(rsize)  # Get array back
+#		print 'train'
+#		print rsizeArr[0][0]
+		grey_image_list.append(onesp-np.divide(black_convert(rsizeArr),255))
+		image_list.append(ones-np.divide(np.asfarray(rsizeArr),255))
 	except:
 		continue
 	#print black_convert(rsizeArr)
-	if i==50: break	
+	#if i==50: break	
+#print 'grey'
+#grey_image_list[0][0][0]
+
 
 i=0
 validate_list = []
 val_rgb_list = []
 for filename in glob.glob('imagenet/validate_images/*.JPEG'): 
-	img = Image.open(filename)
-	rsize = ImageOps.fit(img,(224,224)) 
-	rsizeArr = np.asarray(rsize)  # Get array back
 	try:
-		validate_list.append(black_convert(rsizeArr))
-		val_rgb_list.append(np.asfarray(rsizeArr))
+		img = Image.open(filename)
+		rsize = ImageOps.fit(img,(224,224))
+		ones = np.ones((224,224,3))
+        	onesp = np.ones((224,224))
+ #		print 'val'
+		rsizeArr = np.asarray(rsize)  # Get array back
+#		print rsizeArr[0][0]
+		validate_list.append(onesp-np.divide(black_convert(rsizeArr),255))
+		val_rgb_list.append(ones-np.divide(np.asfarray(rsizeArr),255))
 	except:
 		continue
-	
+	print i
 	i=i+1
-	if i==50 : break
+	#if i==51: break
 
+print 'validate'
+print validate_list[0][0][0]
 
 
 with tf.variable_scope('colors'):
     # Store layers weight
     weights = {
         # 5x5 conv, 1 input, 3 outputs
-        'wc1': tf.Variable(tf.truncated_normal([3, 3, 1, 50],mean=0.5)),
+        'wc1': tf.Variable(tf.truncated_normal([1, 1, 1, 50],stddev=0.01)),
         # 5x5 conv, 1 input, 3 outputs
-        'wc2': tf.Variable(tf.truncated_normal([3, 3, 50, 25],mean=0.5)),
+        'wc2': tf.Variable(tf.truncated_normal([1, 1, 50, 25],stddev=0.01)),
         # 5x5 conv, 1 input, 3 outputs
-        'wc3': tf.Variable(tf.truncated_normal([3, 3, 25, 3],mean=0.5)),
+        'wc3': tf.Variable(tf.truncated_normal([1, 1, 25, 3],stddev=0.01)),
     }
 
 
@@ -84,11 +97,11 @@ with tf.variable_scope('colors'):
     # Store layers bias
     biases = {
         # bias of size 3 for depth 3
-        'bc1': tf.Variable(tf.constant(0.1,shape = [50])),
+        'bc1': tf.Variable(tf.constant(0.0,shape = [50])),
         # bias of size 3 for depth 3
-        'bc2': tf.Variable(tf.constant(0.1,shape = [25])),
+        'bc2': tf.Variable(tf.constant(0.0,shape = [25])),
         # bias of size 3 for depth 3
-        'bc3': tf.Variable(tf.constant(0.1,shape = [3])),
+        'bc3': tf.Variable(tf.constant(0.0,shape = [3])),
     }
 
 
@@ -102,15 +115,19 @@ _tensors = {
 }	
 
 
-pred =tf.mul(cnn_net(_tensors),255.0)
+pred = cnn_net(_tensors)
+image = tf.concat(2,[pred,rgb_image])
+#arg1 = tf.div(tf.add(tf.Variable(tf.constant(1.0,shape = [50,224,224,3])),rgb_image),257)
+#arg2 = tf.div(tf.add(tf.Variable(tf.constant(1.0,shape = [50,224,224,3])),pred),257)
+arg3 = tf.sub(tf.Variable(tf.constant(1.0,shape = [50,224,224,3])),pred)
+arg4 = tf.sub(tf.Variable(tf.constant(1.0,shape = [50,224,224,3])),rgb_image)
 
-arg1 = tf.div(rgb_image,255)
-arg2 = tf.div(pred,255)
-arg3 = tf.sub(tf.Variable(tf.constant(1.0,shape = [50,224,224,3])),arg1)
-arg4 = tf.sub(tf.Variable(tf.constant(1.0,shape = [50,224,224,3])),arg2)
+arg1 = tf.clip_by_value(arg3,1e-10,1)
+arg2 = tf.clip_by_value(pred,1e-10,1)
 
-loss = tf.reduce_mean(-tf.add(tf.mul(arg1,tf.log(arg2)),tf.mul(arg3,tf.log(arg3))),reduction_indices=0)
-optimizer = tf.train.AdamOptimizer()
+
+loss = tf.reduce_sum(-tf.reduce_mean(tf.add(tf.mul(rgb_image,tf.log(arg2)),tf.mul(arg4,tf.log(arg1))),reduction_indices=0))
+optimizer = tf.train.AdamOptimizer(0.0001)
 opt = optimizer.minimize(loss)
 
 
@@ -123,29 +140,44 @@ sess.run(init)
 #merged = tf.merge_all_summaries()
 #writer = tf.train.SummaryWriter("tblog", sess.graph)
 
+#minloss = 1e15
 
-
-for step in xrange(1000):
+for step in xrange(1000000):
 	try:
 		print(step)
 		list_of_num = random.sample(range(0, len(grey_image_list)), 50)
 		batch_xs = list( np.expand_dims(grey_image_list[i],-1) for i in list_of_num ) 
 		batch_ys = list( image_list[i] for i in list_of_num ) 
 		sess.run(opt,feed_dict={grayscale:batch_xs,rgb_image:batch_ys})
+		loss2 = sess.run(loss,feed_dict = {grayscale:batch_xs,rgb_image:batch_ys})
+		#print loss2,imag[0][0][0]
+		print loss2
+		if  loss2<=1e1:
+			break
 
 		
-		if(step!=0 and step%100==0):
-			list_of_num = random.sample(range(0, len(validate_list)), 50)
+		if(step!=0 and step%1000==0):
+			#print len(validate_list)
+			list_of_num = random.sample(range(0, len(validate_list)),50)
 			batch_xs = list( np.expand_dims(validate_list[i],-1) for i in list_of_num ) 
 			batch_ys = list( val_rgb_list[i] for i in list_of_num ) 
-			rgb,loss1 = sess.run([pred,loss],feed_dict={grayscale:batch_xs,rgb_image:batch_ys})
-			print rgb[0]
+			rgb = sess.run([image],feed_dict = {grayscale:batch_xs,rgb_image:batch_ys})[0]
+			#print rgb[0]
+			#print loss1
+
+			#rgb[rgb<0] = 0
+			#rgb[rgb>1] = 1
+			rgb = np.multiply(rgb,255.0)
 		       # sys.stdout.flush()
 		       # writer.add_summary(mergedp, step)
         	       # writer.flush()
 
 			for j in range(50):			
-				plt.imsave("Output_results_ANN/image_" + str(step) + "_"+str(j), rgb[j])
+				plt.imsave("Output_results_ANN/image_" + str(step) + "_"+str(j), rgb[j],vmin=0,vmax=255)
+			#if loss1>=minloss or loss1<=1e1:
+			#	break
+			#else:
+			#	minloss = loss1
 	except:
 		print "Unexpected error:", sys.exc_info()
 		break
