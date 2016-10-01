@@ -36,13 +36,13 @@ def ConvolutionalBatchNormalizer(object):
 			assign_mean = self.mean.assign(mean)
 			assign_variance = self.variance.assign(variance)
 			with tf.control_dependencies([assign_mean,assign_variance]):
-				return tf.nn.batch_normalization(x,mean,variance,self.beta,self.gamma if scale_after_normalization
-											else None,epsilon)
+				return tf.nn.batch_normalization(x,mean,variance,self.beta,self.gamma if self.scale_after_norm
+											else None,self.epsilon)
 
 		else :
 			mean = self.ewma_trainer.average(self.mean)
 			variance = self.ewma_trainer.average(self.variance)
 			local_beta = tf.identity(self.beta)
 			local_gamma = tf.identity(self.gamma)
-			return tf.nn.batch_normalization(x,mean,variance,local_beta,local_gamma if scale_after_normalization
-											else None,epsilon)
+			return tf.nn.batch_normalization(x,mean,variance,local_beta,local_gamma if self.scale_after_norm
+											else None,self.epsilon)
