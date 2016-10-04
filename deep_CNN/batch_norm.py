@@ -1,10 +1,10 @@
-import tensortflow as tf
+import tensorflow as tf
 
 # if x is my input vector where x=<x1,x2,....xn>
 # then xnew(i) = (x(i) - mean(x))/sqrt(Var(x)+epsilon)
 # return y = gamma * xnew + beta  
 
-def ConvolutionalBatchNormalizer(object):
+class ConvolutionalBatchNormalizer(object):
 	def __init__(self,depth,epsilon,ewma,scale_after_norm):
 		self.mean = tf.Variable(tf.constant(0.0,shape=[depth]),trainable=False)
 		self.variance = tf.Variable(tf.constant(1.0,shape=[depth]),trainable=False)
@@ -44,5 +44,5 @@ def ConvolutionalBatchNormalizer(object):
 			variance = self.ewma_trainer.average(self.variance)
 			local_beta = tf.identity(self.beta)
 			local_gamma = tf.identity(self.gamma)
-			return tf.nn.batch_normalization(x,mean,variance,local_beta,local_gamma if self.scale_after_norm
-											else None,self.epsilon)
+			return tf.nn.batch_normalization(x,mean,variance,local_beta,local_gamma if self.scale_after_norm							
+                                          else None,self.epsilon)
